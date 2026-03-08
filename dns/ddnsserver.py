@@ -54,7 +54,7 @@ records = {
 def dns_response(data):
     request = DNSRecord.parse(data)
 
-    if request != None:
+    if request is not None:
         for line in str(request).split('\n'):
             if line.find(domain_name) > 0:
                 print(line)
@@ -95,16 +95,15 @@ class BaseRequestHandler(socketserver.BaseRequestHandler):
         raise NotImplementedError
 
     def handle(self):
-        now = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
+        now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S.%f')
         #print("\n\n%s request %s (%s %s):" % (self.__class__.__name__[:3], now, self.client_address[0],
         #                                       self.client_address[1]))
         try:
             data = self.get_data()
             #print(len(data), data)  # repr(data).replace('\\x', '')[1:-1]            
             self.send_data(dns_response(data))
-        except Exception:
-            pass
-            #traceback.print_exc(file=sys.stderr)
+        except Exception as e:
+            sys.stderr.write(f"DNS handler error: {e}\n")
 
 
 class TCPRequestHandler(BaseRequestHandler):
@@ -133,7 +132,6 @@ class UDPRequestHandler(BaseRequestHandler):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Start a DNS implemented in Python.')
     parser = argparse.ArgumentParser(description='Start a DNS implemented in Python. Usually DNSs use UDP on port 53.')
     parser.add_argument('--port', default=53, type=int, help='The port to listen on.')
     parser.add_argument('--tcp', action='store_true', help='Listen to TCP connections.')

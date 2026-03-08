@@ -9,14 +9,14 @@
 # ******************************************************************
 
 import argparse
-import random
-import requests
-import time
-import sys
-from urllib import parse as urlparse
 import base64
 import json
+import os
 import random
+import requests
+import sys
+import time
+from urllib import parse as urlparse
 from uuid import uuid4
 from base64 import b64encode
 from Crypto.Cipher import AES, PKCS1_OAEP
@@ -33,13 +33,14 @@ except Exception:
     pass
 
 
-cprint('[•] CVE-2021-44228 - Apache Log4j RCE Scanner', "green")
-cprint('[•] Scanner provided by FullHunt.io - The Next-Gen Attack Surface Management Platform.', "yellow")
-cprint('[•] Secure your External Attack Surface with FullHunt.io.', "yellow")
+def print_banner():
+    cprint('[•] CVE-2021-44228 - Apache Log4j RCE Scanner', "green")
+    cprint('[•] Scanner provided by FullHunt.io - The Next-Gen Attack Surface Management Platform.', "yellow")
+    cprint('[•] Secure your External Attack Surface with FullHunt.io.', "yellow")
 
-if len(sys.argv) <= 1:
-    print('\n%s -h for help.' % (sys.argv[0]))
-    exit(0)
+    if len(sys.argv) <= 1:
+        print('\n%s -h for help.' % (sys.argv[0]))
+        exit(0)
 
 
 default_headers = {
@@ -136,7 +137,10 @@ if args.proxy:
 def get_fuzzing_headers(payload):
     fuzzing_headers = {}
     fuzzing_headers.update(default_headers)
-    with open(args.headers_file, "r") as f:
+    headers_path = args.headers_file
+    if not os.path.isabs(headers_path):
+        headers_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), headers_path)
+    with open(headers_path, "r") as f:
         for i in f.readlines():
             i = i.strip()
             if i == "" or i.startswith("#"):
@@ -189,14 +193,14 @@ class Interactsh:
         self.secret = str(uuid4())
         self.encoded = b64encode(self.public_key).decode("utf8")
         guid = uuid4().hex.ljust(33, 'a')
-        guid = ''.join(i if i.isdigit() else chr(ord(i) + random.randint(0, 20)) for i in guid)
+        guid = ''.join(i if i.isdigit() else chr(ord('a') + (ord(i) - ord('a') + random.randint(0, 20)) % 26) for i in guid)
         self.domain = f'{guid}.{self.server}'
         self.correlation_id = self.domain[:20]
 
         self.session = requests.session()
         self.session.headers = self.headers
         self.session.verify = False
-        self.session.proxies = proxies
+        self.session.proxies = proxies if proxies else {}
         self.register()
 
     def register(self):
@@ -287,7 +291,7 @@ def scan_url(url, callback_host):
                                  allow_redirects=(not args.disable_redirects),
                                  proxies=proxies)
             except Exception as e:
-                cprint(f"EXCEPTION: {e}")
+                cprint(f"EXCEPTION: {e}", "red")
 
         if args.request_type.upper() == "POST" or args.run_all_tests:
             try:
@@ -302,7 +306,7 @@ def scan_url(url, callback_host):
                                  allow_redirects=(not args.disable_redirects),
                                  proxies=proxies)
             except Exception as e:
-                cprint(f"EXCEPTION: {e}")
+                cprint(f"EXCEPTION: {e}", "red")
 
             try:
                 # JSON body
@@ -316,7 +320,7 @@ def scan_url(url, callback_host):
                                  allow_redirects=(not args.disable_redirects),
                                  proxies=proxies)
             except Exception as e:
-                cprint(f"EXCEPTION: {e}")
+                cprint(f"EXCEPTION: {e}", "red")
 
 
 def main():
@@ -357,7 +361,7 @@ def main():
     time.sleep(int(args.wait_time))
     records = dns_callback.pull_logs()
     if len(records) == 0:
-        cprint("[•] Targets does not seem to be vulnerable.", "green")
+        cprint("[•] Targets do not seem to be vulnerable.", "green")
     else:
         cprint("[!!!] Target Affected", "yellow")
         for i in records:
@@ -365,6 +369,7 @@ def main():
 
 
 if __name__ == "__main__":
+    print_banner()
     try:
         main()
     except KeyboardInterrupt:
